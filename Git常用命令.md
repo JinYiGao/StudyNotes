@@ -10,6 +10,8 @@ git commit -m "first commit"   #提交 并添加注释
 git remote add origin https://github.com/JinYiGao/Geological-hazard-weapon  #远程连接到仓库
 
 git push -u origin master  #push到仓库
+
+git pull 
 #  若要提交到分支 则 
 #  git push -u origin 分支名
 
