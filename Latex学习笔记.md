@@ -1,3 +1,7 @@
+---
+typora-copy-images-to: image
+---
+
 # LaTex学习笔记
 
 ## 基本命令
@@ -61,9 +65,9 @@ x^{2}  %表示上标
 
 ```
 
-<img src="C:\Users\Administrator\AppData\Roaming\Typora\typora-user-images\image-20210118172316780.png" alt="image-20210118172316780" style="zoom: 80%;" />
+<img src="D:\Study\学习笔记\image\image-20210118172316780.png" alt="image-20210118172316780" style="zoom: 80%;" />
 
 
 
-![image-20210118172517836](C:\Users\Administrator\AppData\Roaming\Typora\typora-user-images\image-20210118172517836.png)
+![image-20210118172517836](D:\Study\学习笔记\image\image-20210118172517836.png)
 

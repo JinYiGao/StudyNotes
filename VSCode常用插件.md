@@ -1,3 +1,7 @@
+---
+typora-copy-images-to: image
+---
+
 # VSCode常用插件
 
 ## 1.KoroFileHeader
@@ -29,7 +33,7 @@
 
 ```
 
-<img src="C:\Users\Administrator\AppData\Roaming\Typora\typora-user-images\image-20210117143055448.png" alt="image-20210117143055448" style="zoom: 80%;" />
+<img src="D:\Study\学习笔记\image\image-20210117143055448.png" alt="image-20210117143055448" style="zoom: 80%;" />
 
 ```shell
 
