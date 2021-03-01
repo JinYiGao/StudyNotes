@@ -45,6 +45,9 @@ SET(CMAKE_AUTOMOC ON)
 # 设置自动生成ui.h文件,AUTOUIC打开可以省去QT5_WRAP_UI命令
 SET(CMAKE_AUTOUIC ON)
 
+#设置自动生成rcc资源文件
+SET(CMAKE_AUTORCC ON)
+
 #通过Ui文件生成对应的头文件，一定要添加
 #QT5_WRAP_UI(WRAP_FILES ${UI_FILES})
 ```
