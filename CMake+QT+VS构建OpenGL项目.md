@@ -52,14 +52,14 @@ SET(CMAKE_AUTORCC ON)
 #QT5_WRAP_UI(WRAP_FILES ${UI_FILES})
 ```
 
-## 1.2获取需要的组件
+## 1.2 获取需要的组件
 
 ```cmake
 #find_package 获取QT5中的Core、Gui等组件
 find_package(Qt5 REQUIRED COMPONENTS Core Gui Widgets)
 ```
 
-## 1.3打包编译
+## 1.3 打包编译
 
 ```cmake
 #打包文件 以一个变量名表示
@@ -76,7 +76,7 @@ add_executable(main ${SOURCES} ${UI_FILES} )
 target_link_libraries(main Qt5::Core Qt5::Widgets Qt5::Gui)
 ```
 
-## 1.4CMake编译
+## 1.4 CMake编译
 
 ```shell
 #使用bat脚本来指定编译方式
@@ -88,7 +88,7 @@ cmake -G "Visual Studio 15 2017" -A "x64" -T "host=x64" ^
     ../
 ```
 
-## 1.5dll复制
+## 1.5 dll复制
 
 ```shell
 # vs编译时可能会提示缺少dll，去复制一下就行。
