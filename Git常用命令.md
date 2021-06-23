@@ -20,6 +20,10 @@ git branch 分支名   #创建新分支
 git checkout -b 分支名    #（你自己创建的分支名 若无 则创建新分支）
 git checkout 分支名   #切换分支
 
+git branch -D tmp #删除本地分支
+
+git branch -r #查看远程分支
+ 
 git push origin --delete master  #删除Github项目上的master分支
 
 git rm -r --cached "文件路径"   #不删除物理文件，仅将该文件从缓存中删除；

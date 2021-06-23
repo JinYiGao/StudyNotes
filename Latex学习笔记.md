@@ -69,5 +69,5 @@ x^{2}  %表示上标
 
 <img src="D:\Study\学习笔记\image\image-20210118172316780.png" alt="image-20210118172316780" style="zoom: 80%;" />
 
-![image-20210118172517836](D:\Study\学习笔记\image\image-20210118172517836.png)
+![image-20210118172517836](./image/image-20210118172517836.png)
 

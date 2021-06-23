@@ -111,6 +111,9 @@ gl_FragCoord //x和y分量代表片段的屏幕空间坐标 z分量代表片段�
     
 //丢弃片段
 discard;
+
+//纹理变量
+sampler2D  ,  samplerCube
     
 
 ```
@@ -217,7 +220,10 @@ Eigen::AngleAxisf rotation;//旋转
 rotation = Eigen::AngleAxisf(angle, Eigen::Vector3f::UnitZ());//设置旋转角和旋转轴
 Eigen::Isometry3f trans;//欧式变换矩阵
 
-// 1.由于Eigen底层是由一维数组实现，且矩阵是列主序的，因此将转换矩阵传入Shader时，OpenGL将会按列读取，这将会导致计算坐标时按照每一列与坐标向量相乘，所以在传入时需要对转换矩阵进行转置，再传入.
+// 1.Eigen: 列主序 OpenGL mat: 列主序
+// 2.Eigen Matrix 转 QMatrix
+Eigen::Matrix4f mat;
+QMatrix4x4(mat.template cast<float>().data(), 4, 4)
 
 //传入uniform 矩阵变量
 shaderProgram->setUniformValue("transform", QMatrix4x4(transform.template cast<float>().data()));
@@ -439,6 +445,7 @@ glBlendFunc(GLenum sfactor, GLenum dfactor)
 ### 9.4 面剔除
 
 ```c++
+面剔除含义: 渲染正向面 ， 丢弃背向面
 //启用面剔除
 glEnable(GL_CULL_FACE);
 
@@ -454,11 +461,17 @@ glFrontFace(GL_CCW);
 // 顺时针 --GL_CW
 ```
 
-### 9.5 帧缓冲(重要!!!)
+### 9.5 帧缓冲(重要!!!)  -------离屏渲染
 
 ```c++
 // 帧缓冲 = 颜色缓冲 + 深度缓冲 + 模板缓冲
-//glfw 或者 QOpenGLWidget在创建窗口的时候会生成默认的帧缓冲.
+//glfw 或者 QOpenGLWidget在创建窗口的时候会生成默认的帧缓冲.=屏幕
+
+//**** QOpenGL默认屏幕帧缓冲与原生OpenGL不同 
+//     原生OpenGL默认为0； 
+//     QOpenGL为defaultFrameBufferObject()
+
+// 其本质是经过离屏渲染后将场景作为纹理绘制到默认帧缓冲(屏幕)上.
 
 //创建帧缓冲
 unsigned int fbo;
@@ -470,7 +483,7 @@ glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 // 绑定到GL_READ_FRAMEBUFFER的帧缓冲将会使用在所有像是glReadPixels的读取操作中;
 // 而绑定到GL_DRAW_FRAMEBUFFER的帧缓冲将会被用作渲染、清除等写入操作的目标
     
-//***一个完整的帧缓冲需要满足以下的条件：
+//---------------------------------------***一个完整的帧缓冲需要满足以下的条件：-------------------------------------------------
 //  1.附加至少一个缓冲（颜色、深度或模板缓冲）。
 //  2.至少有一个颜色附件(Attachment)。
 //  3.所有的附件都必须是完整的（保留了内存）。
@@ -481,7 +494,7 @@ glCheckFramebufferStatus(GL_FRAMEBUFFER)
 
 //***通常的规则是，如果你不需要从一个缓冲中采样数据，那么对这个缓冲使用渲染缓冲对象会是明智的选择。如果你需要从缓冲中采样颜色或深度值等数据，那么你应该选择纹理附件.   
  
-//----------------------------纹理附件--------------------------------
+//---------------------------------------------1. 纹理附件-----------------------------------------------
 // 即 创建一个纹理 并附加到帧缓冲
 // 创建一个纹理
 unsigned int texture;
@@ -502,8 +515,9 @@ glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, text
 GL_DEPTH_COMPONENT
 GL_STENCIL_ATTACHMENT
 GL_DEPTH_STENCIL_ATTACHMENT
-//-------------------------渲染缓冲对象附件-----------------------------
-//创建渲染缓冲对象
+//------------------------------------------2. 渲染缓冲对象附件-------------------------------------------
+//渲染缓冲对象是只写的
+//创建渲染缓冲对象 
 unsigned int rbo;
 glGenRenderbuffers(1, &rbo);
 
@@ -515,6 +529,252 @@ glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, 800, 600);
 
 //附加渲染缓冲对象到帧缓冲
 glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
+```
+
+### 9.6 立方体贴图
+
+```c++
+//  应用 —— 天空盒
+
+//创建立方体贴图纹理
+unsigned int textureID;
+glGenTextures(1, &textureID);
+glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
+```
+
+| 纹理目标                         | 方位 |
+| -------------------------------- | ---- |
+| `GL_TEXTURE_CUBE_MAP_POSITIVE_X` | 右   |
+| `GL_TEXTURE_CUBE_MAP_NEGATIVE_X` | 左   |
+| `GL_TEXTURE_CUBE_MAP_POSITIVE_Y` | 上   |
+| `GL_TEXTURE_CUBE_MAP_NEGATIVE_Y` | 下   |
+| `GL_TEXTURE_CUBE_MAP_POSITIVE_Z` | 后   |
+| `GL_TEXTURE_CUBE_MAP_NEGATIVE_Z` | 前   |
+
+```c++
+//纹理目标其背后对应int值依次递增
+//设置立方体贴图每个面纹理数据
+i = 0:1:5;
+glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+
+//立方体贴图纹理采样器
+// --采样时需要给定一个方向向量
+uniform samplerCube cubemap;
+```
+
+### 9.7 高级数据
+
+```c++
+//插入或更新部分缓冲内存  ----必须先调用glBufferData
+glBufferSubData(GL_ARRAY_BUFFER, 24, sizeof(data), &data); // 范围： [24, 24 + sizeof(data)]
+
+//返回当前绑定缓冲目标对应的缓冲变量内存指针
+glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
+// 复制数据到缓冲内存
+memcpy(ptr, data, sizeof(data));
+
+//复制缓冲
+void glCopyBufferSubData(GLenum readtarget, GLenum writetarget, GLintptr readoffset,GLintptr writeoffset, GLsizeiptr size);
+//***但如果我们想读写数据的两个不同缓冲都为顶点数组缓冲该怎么办呢？我们不能同时将两个缓冲绑定到同一个缓冲目标上。正是出于这个原因，OpenGL提供给我们另外两个缓冲目标，叫做GL_COPY_READ_BUFFER和GL_COPY_WRITE_BUFFER。我们接下来就可以将需要的缓冲绑定到这两个缓冲目标上，并将这两个目标作为readtarget和writetarget参数。
+```
+
+### 9.8 高级GLSL
+
+```glsl
+//============================GLSL内建变量=============================
+//----------------------------顶点着色器变量----------------------------
+//---顶点着色器的裁剪空间输出位置向量
+gl_Position   
+    
+//***必须先启用***
+glEnable(GL_PROGRAM_POINT_SIZE);
+//---设置渲染的点大小 (默认禁用)
+gl_PointSize
+
+//正在绘制顶点的当前ID
+//***当（使用glDrawElements）进行索引渲染的时候，这个变量会存储正在绘制顶点的当前索引。当（使用glDrawArrays）不使用索引进行绘制的时候，这个变量会储存从渲染调用开始的已处理顶点数量。***
+gl_VertexID
+
+//当前渲染的实例ID
+gl_InstanceID
+//----------------------------片段着色器变量----------------------------
+//***gl_FragCoord的z分量等于对应片段的深度值, x和y分量是片段的窗口空间(Window-space)坐标，其原点为窗口的左下角***
+gl_FragCoord
+    
+//bool变量，如果当前片段是正向面的一部分那么就是true，否则就是false
+gl_FrontFacing
+
+//设置片段的深度值
+gl_FragDepth
+//***然而，由我们自己设置深度值有一个很大的缺点，只要我们在片段着色器中对gl_FragDepth进行写入，OpenGL就会（像深度测试小节中讨论的那样）禁用所有的提前深度测试(Early Depth Testing)。它被禁用的原因是，OpenGL无法在片段着色器运行之前得知片段将拥有的深度值，因为片段着色器可能会完全修改这个深度值。***
+
+//但可以进行一定程度的调和
+layout (depth_<condition>) out float gl_FragDepth;
+
+condition可以为下表中的值:
+```
+
+| 条件        | 描述                                                         |
+| ----------- | ------------------------------------------------------------ |
+| `any`       | 默认值。提前深度测试是禁用的，你会损失很多性能               |
+| `greater`   | 你只能让深度值比`gl_FragCoord.z`更大                         |
+| `less`      | 你只能让深度值比`gl_FragCoord.z`更小                         |
+| `unchanged` | 如果你要写入`gl_FragDepth`，你将只能写入`gl_FragCoord.z`的值 |
+
+```glsl
+//================================接口块================================
+// 例如
+struct Light{
+    vec3 position;
+
+    vec3 ambient;//环境光
+    vec3 diffuse;//漫反射光
+    vec3 specular;//镜面反射光
+};
+uniform Light light;
+out Light light_out;
+
+//=============================Uniform缓冲对象============================
+//------------------------------uniform块布局----------------------------
+//***Uniform块的内容是储存在一个缓冲对象中的，它实际上只是一块预留内存。因为这块内存并不会保存它具体保存的是什么类型的数据，我们还需要告诉OpenGL内存的哪一部分对应着着色器中的哪一个uniform变量***
+//---Uniform块---
+layout (std140) uniform ExampleBlock
+{
+    float value;
+    vec3  vector;
+    mat4  matrix;
+    float values[3];
+    bool  boolean;
+    int   integer;
+};
+
+//每个变量都有一个基准对齐量(Base Alignment)，它等于一个变量在Uniform块中所占据的空间（包括填充量(Padding)），这个基准对齐量是使用std140布局的规则计算出来的。接下来，对每个变量，我们再计算它的对齐偏移量(Aligned Offset)，它是一个变量从块起始位置的字节偏移量。一个变量的对齐字节偏移量必须等于基准对齐量的倍数。
+layout (std140) uniform ExampleBlock
+{
+                     // 基准对齐量       // 对齐偏移量
+    float value;     // 4               // 0 
+    vec3 vector;     // 16              // 16  (必须是16的倍数，所以 4->16)
+    mat4 matrix;     // 16              // 32  (列 0)
+                     // 16              // 48  (列 1)
+                     // 16              // 64  (列 2)
+                     // 16              // 80  (列 3)
+    float values[3]; // 16              // 96  (values[0])
+                     // 16              // 112 (values[1])
+                     // 16              // 128 (values[2])
+    bool boolean;    // 4               // 144
+    int integer;     // 4               // 148
+}; 
+
+//-----------------------------使用Uniform缓冲----------------------------
+// * 首先跟其他缓冲一样必须在程序中创建
+unsigned int uboExampleBlock;
+glGenBuffers(1, &uboExampleBlock);
+glBindBuffer(GL_UNIFORM_BUFFER, uboExampleBlock);
+glBufferData(GL_UNIFORM_BUFFER, 152, NULL, GL_STATIC_DRAW); // 分配152字节的内存
+
+//***如何才能让OpenGL知道哪个Uniform缓冲对应的是哪个Uniform块呢？***
+//在OpenGL上下文中，定义了一些绑定点(Binding Point)，我们可以将一个Uniform缓冲链接至它。在创建Uniform缓冲之后，我们将它绑定到其中一个绑定点上，并将着色器中的Uniform块绑定到相同的绑定点，把它们连接到一起。
+
+//将Uniform块绑定到一个特定的绑定点
+//先查询着色器中Uniform块索引，绑定到绑定点2
+unsigned int lights_index = glGetUniformBlockIndex(shaderA.ID,"Lights"); 
+glUniformBlockBinding(shaderA.ID, lights_index, 2);
+//再将Uniform缓冲绑定到相同的绑定点2
+glBindBufferBase(GL_UNIFORM_BUFFER, 2, uboExampleBlock); 
+// 或
+glBindBufferRange(GL_UNIFORM_BUFFER, 2, uboExampleBlock, 0, 152);
+
+//***从OpenGL 4.2版本起，也可以添加一个布局标识符，显式地将Uniform块的绑定点储存在着色器中，这样就不用再调用glGetUniformBlockIndex和glUniformBlockBinding了。***
+// 例如:
+layout(std140, binding = 2) uniform Lights { ... };
+    
+//填充或者更新Uniform缓冲
+glBindBuffer(GL_UNIFORM_BUFFER, uboExampleBlock);
+int b = true; // GLSL中的bool是4字节的，所以我们将它存为一个integer
+glBufferSubData(GL_UNIFORM_BUFFER, 144, 4, &b); 
+glBindBuffer(GL_UNIFORM_BUFFER, 0);
+```
+
+### 9.9 几何着色器
+
+```glsl
+// 顶点着色器和片段着色器之间 可选的一个着色器
+
+```
+
+### 9.10 实例化(重要!!!) ---------批量渲染
+
+```c++
+// 使用一次渲染调用来绘制多个物体, 节省每次绘制物体时CPU->GPU的通信
+
+//使用实例化渲染 将glDrawArrays和glDrawElements改为如下API:
+glDrawArraysInstanced()
+glDrawElementsInstanced()
+//这个函数本身并没有什么用。渲染同一个物体一千次对我们并没有什么用处，每个物体都是完全相同的，而且还在同一个位置。我们只能看见一个物体!出于这个原因，GLSL在顶点着色器中嵌入了另一个内建变量，gl_InstanceID。
+//在使用实例化渲染调用时，gl_InstanceID会从0开始，在每个实例被渲染时递增1。比如说，我们正在渲染第43个实例，那么顶点着色器中它的gl_InstanceID将会是42。因为每个实例都有唯一的ID，我们可以建立一个数组，将ID与位置值对应起来，将每个实例放置在世界的不同位置。
+// *** 例如:
+#version 330 core
+layout (location = 0) in vec2 aPos;
+layout (location = 1) in vec3 aColor;
+
+out vec3 fColor;
+
+uniform vec2 offsets[100];
+
+void main()
+{
+    vec2 offset = offsets[gl_InstanceID];
+    gl_Position = vec4(aPos + offset, 0.0, 1.0);
+    fColor = aColor;
+}
+
+gl_InstanceID //当前渲染实例ID
+
+//-----------------------------实例化数组---------------------------------
+//虽然上述实现在目前的情况下能够正常工作，但是如果我们要渲染远超过100个实例的时候，我们最终会超过最大能够发送至着色器的uniform数据大小上限。它的一个代替方案是实例化数组(Instanced Array).
+
+//告诉OpenGL什么时候更新顶点属性，以下例子表明位于顶点位置2的顶点属性是一个实例化数组，每渲染一个实例更新一次顶点属性
+glVertexAttribDivisor(2, 1)
+```
+
+### 9.11 抗锯齿
+
+```c++
+//多重采样抗锯齿(MSAA)
+glEnable(GL_MULTISAMPLE);
+
+// *** 离屏MSAA *** ---帧缓冲---
+//----------------------------多重采样纹理附件-------------------------------
+//用glTexImage2DMultisample来替代glTexImage2D，它的纹理目标是GL_TEXTURE_2D_MULTISAPLE
+//创建多重采样纹理
+glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, tex);
+glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, samples, GL_RGB, width, height, GL_TRUE);
+glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
+//附加纹理到帧缓冲
+glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, tex, 0);
+
+//---------------------------多重采样渲染缓冲对象---------------------------
+//创建多重采样渲染缓冲对象 并指定存储
+//指定样本数为4
+glRenderbufferStorageMultisample(GL_RENDERBUFFER, 4, GL_DEPTH24_STENCIL8, width, height);
+
+
+//渲染到多重采样帧缓冲
+// *** 渲染到多重采样帧缓冲对象的过程都是自动的。只要在帧缓冲绑定时绘制任何东西，光栅器就会负责所有的多重采样运算。最终会得到一个多重采样颜色缓冲以及/或深度和模板缓冲。因为多重采样缓冲有一点特别，不能直接将它们的缓冲图像用于其他运算，比如在着色器中对它们进行采样。因此不能直接在屏幕中以纹理方式进行显示，需要先缩小或者还愿图像。
+
+//多重采样帧缓冲还原
+//glBlitFramebuffer将一个帧缓冲中的某个区域复制到另一个帧缓冲中，并且将多重采样缓冲还原
+glBindFramebuffer(GL_READ_FRAMEBUFFER, multisampledFBO); //帧缓冲
+glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0); //屏幕缓冲
+glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+
+// *** 但如果想要使用多重采样帧缓冲的纹理输出来做像是后期处理这样的事情呢？我们不能直接在片段着色器中使用多重采样的纹理。但我们能做的是将多重采样缓冲位块传送到一个没有使用多重采样纹理附件的FBO中。然后用这个普通的颜色附件来做后期处理，从而达到我们的目的。然而，这也意味着我们需要生成一个新的FBO，作为中介帧缓冲对象，将多重采样缓冲还原为一个能在着色器中使用的普通2D纹理。***
+
+// *** 将一个多重采样的纹理图像不进行还原直接传入着色器也是可行的。GLSL提供了这样的选项，让我们能够对纹理图像的每个子样本进行采样，所以我们可以创建我们自己的抗锯齿算法。
+// 例如:
+uniform sampler2DMS screenTextureMS;
+//获取每个子样本颜色值
+vec4 colorSample = texelFetch(screenTextureMS, TexCoords, 3);  // 第4个子样本
 ```
 
 
